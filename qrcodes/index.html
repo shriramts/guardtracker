@@ -1,81 +1,47 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>QR Guard Patrol</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-</head>
-<body>
-  <h2>Guard QR Scanner</h2>
+const endpoint = "https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbx_mTX3HEmaGjZBQDEG0n5IC50-Q0_hnEw6NHSFZtZEMj5nQ9T5aBFBep2ni0K9l52e/exec/exec";
 
-  <!-- Static QR Code Display for Admin/Printing -->
-  <h3>Sample QR Code (Tower 3)</h3>
-  <img src="qrcodes/TOWER3.png" alt="Tower 3 QR Code" width="200" />
-  <p>Scan this printed QR at Tower 3 Lobby</p>
+function onScanSuccess(decodedText) {
+  const [location_id, location_name] = decodedText.split("|");
+  const guard_name = document.getElementById("guardName").value;
+  if (!guard_name) return alert("Please enter guard name");
 
-  <!-- Scanner and Controls -->
-  <input id="guardName" placeholder="Enter Guard Name" />
-  <div id="reader" style="width:300px; margin-top:20px;"></div>
-  <button onclick="syncOfflineData()">Sync Offline Logs</button>
-  <div id="syncStatus" style="margin-top:10px;"></div>
+  const payload = { guard_name, location_id, location_name };
 
-  <script>
-    const endpoint = "https://script.google.com/macros/s/AKfycbx_mTX3HEmaGjZBQDEG0n5IC50-Q0_hnEw6NHSFZtZEMj5nQ9T5aBFBep2ni0K9l52e/exec"; // Replace with your Apps Script URL
+  fetch(endpoint, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: { "Content-Type": "application/json" }
+  }).then(res => {
+    alert("✅ Scan logged");
+  }).catch(err => {
+    let logs = JSON.parse(localStorage.getItem("offlineLogs") || "[]");
+    logs.push(payload);
+    localStorage.setItem("offlineLogs", JSON.stringify(logs));
+    alert("🔁 Offline: Scan saved locally");
+  });
+}
 
-    function onScanSuccess(decodedText) {
-      const [location_id, location_name] = decodedText.split("|");
-      const guard_name = document.getElementById("guardName").value;
-      if (!guard_name) return alert("Please enter guard name");
+function syncOfflineData() {
+  let logs = JSON.parse(localStorage.getItem("offlineLogs") || "[]");
+  if (!logs.length) {
+    document.getElementById("syncStatus").innerText = "✅ No offline logs to sync.";
+    return;
+  }
 
-      const payload = {
-        guard_name,
-        location_id,
-        location_name
-      };
-
-      fetch(endpoint, {
-        method: "POST",
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "application/json" }
-      }).then(res => alert("✅ Scan logged!"))
-        .catch(err => {
-          let logs = JSON.parse(localStorage.getItem("offlineLogs") || "[]");
-          logs.push(payload);
-          localStorage.setItem("offlineLogs", JSON.stringify(logs));
-          alert("🔁 Offline: Scan saved locally");
-        });
-    }
-
-    function syncOfflineData() {
-      let logs = JSON.parse(localStorage.getItem("offlineLogs") || "[]");
-      if (!logs.length) {
-        document.getElementById("syncStatus").innerText = "✅ No offline logs to sync.";
-        return;
+  let synced = 0;
+  logs.forEach(log => {
+    fetch(endpoint, {
+      method: "POST",
+      body: JSON.stringify(log),
+      headers: { "Content-Type": "application/json" }
+    }).then(() => {
+      synced++;
+      if (synced === logs.length) {
+        localStorage.removeItem("offlineLogs");
+        document.getElementById("syncStatus").innerText = `✅ Synced ${synced} offline logs.`;
       }
-
-      let synced = 0;
-      logs.forEach(log => {
-        fetch(endpoint, {
-          method: "POST",
-          body: JSON.stringify(log),
-          headers: { "Content-Type": "application/json" }
-        }).then(() => {
-          synced++;
-          if (synced === logs.length) {
-            localStorage.removeItem("offlineLogs");
-            document.getElementById("syncStatus").innerText = `✅ Synced ${synced} offline logs.`;
-          }
-        }).catch(() => {
-          document.getElementById("syncStatus").innerText = "❌ Sync failed. Try again.";
-        });
-      });
-    }
-
-    new Html5Qrcode("reader").start(
-      { facingMode: "environment" },  // Use rear camera
-      { fps: 10, qrbox: 250 },
-      onScanSuccess
-    );
-  </script>
-</body>
-</html>
-
+    }).catch(() => {
+      document.getElementById("syncStatus").innerText = "❌ Sync failed. Try again.";
+    });
+  });
+}
