@@ -1,24 +1,22 @@
 <!DOCTYPE html>
 <html>
 
+const endpoint = "https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbx_mTX3HEmaGjZBQDEG0n5IC50-Q0_hnEw6NHSFZtZEMj5nQ9T5aBFBep2ni0K9l52e/exec/exec";  // ✅ paste your URL here
+
 function onScanSuccess(decodedText) {
   const [location_id, location_name] = decodedText.split("|");
   const guard_name = document.getElementById("guardName").value;
   if (!guard_name) return alert("Please enter guard name");
 
-  const payload = {
-    guard_name,
-    location_id,
-    location_name
-  };
+  const payload = { guard_name, location_id, location_name };
 
   fetch(endpoint, {
     method: "POST",
     body: JSON.stringify(payload),
     headers: { "Content-Type": "application/json" }
-  }).then(res => {
+  }).then(() => {
     alert("✅ Scan logged");
-  }).catch(err => {
+  }).catch(() => {
     let logs = JSON.parse(localStorage.getItem("offlineLogs") || "[]");
     logs.push(payload);
     localStorage.setItem("offlineLogs", JSON.stringify(logs));
