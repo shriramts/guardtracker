@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QR Guard Patrol</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+  <h2>Guard QR Scanner</h2>
+  <input id="guardName" placeholder="Enter Guard Name" />
+  <div id="reader" style="width:300px; margin-top:20px;"></div>
+
+  <script>
+    const endpoint = "YOUR_GOOGLE_SCRIPT_URL_HERE"; // Replace with your Apps Script URL
+
+    function onScanSuccess(decodedText) {
+      const [location_id, location_name] = decodedText.split("|");
+      const guard_name = document.getElementById("guardName").value;
+      if (!guard_name) return alert("Please enter guard name");
+
+      fetch(endpoint, {
+        method: "POST",
+        body: JSON.stringify({ guard_name, location_id, location_name }),
+        headers: { "Content-Type": "application/json" }
+      }).then(res => alert("✅ Scan logged!")).catch(err => alert("❌ Logging failed"));
+    }
+
+    new Html5Qrcode("reader").start(
+      { facingMode: "environment" },  // Use rear camera
+      { fps: 10, qrbox: 250 },
+      onScanSuccess
+    );
+  </script>
+</body>
+</html>
