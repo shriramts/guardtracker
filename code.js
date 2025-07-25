@@ -1,11 +1,51 @@
-function doPost(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Log");
-  var data = JSON.parse(e.postData.contents);
-  sheet.appendRow([
-    new Date(),
-    data.guard_name,
-    data.location_id,
-    data.location_name
-  ]);
-  return ContentService.createTextOutput("Success");
+function onScanSuccess(decodedText) {
+  const [location_id, location_name] = decodedText.split("|");
+  const guard_name = document.getElementById("guardName").value;
+  if (!guard_name) return alert("Please enter guard name");
+
+  const payload = {
+    guard_name,
+    location_id,
+    location_name
+  };
+
+  // Try to send immediately
+  fetch(endpoint, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: { "Content-Type": "application/json" }
+  }).then(res => {
+    alert("✅ Scan logged");
+  }).catch(err => {
+    // Save offline if failed
+    let logs = JSON.parse(localStorage.getItem("offlineLogs") || "[]");
+    logs.push(payload);
+    localStorage.setItem("offlineLogs", JSON.stringify(logs));
+    alert("🔁 Offline: Scan saved locally");
+  });
+}
+
+function syncOfflineData() {
+  let logs = JSON.parse(localStorage.getItem("offlineLogs") || "[]");
+  if (!logs.length) {
+    document.getElementById("syncStatus").innerText = "✅ No offline logs to sync.";
+    return;
+  }
+
+  let synced = 0;
+  logs.forEach(log => {
+    fetch(endpoint, {
+      method: "POST",
+      body: JSON.stringify(log),
+      headers: { "Content-Type": "application/json" }
+    }).then(() => {
+      synced++;
+      if (synced === logs.length) {
+        localStorage.removeItem("offlineLogs");
+        document.getElementById("syncStatus").innerText = `✅ Synced ${synced} offline logs.`;
+      }
+    }).catch(() => {
+      document.getElementById("syncStatus").innerText = "❌ Sync failed. Try again.";
+    });
+  });
 }
